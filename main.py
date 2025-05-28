@@ -1,21 +1,18 @@
 from flask import Flask, request
 import requests
 import os
-from transformers import pipeline
 
 app = Flask(__name__)
 
-# 🔑 Tokens : assure-toi qu'ils sont bien définis dans ton environnement ou en dur pour tester
+# 🔑 Tokens : assure-toi qu'ils sont définis dans les variables d'environnement sur Render
 VERIFY_TOKEN = os.environ.get("VERIFY_TOKEN", "mon_token_secret")
 PAGE_ACCESS_TOKEN = os.environ.get("PAGE_ACCESS_TOKEN", "ton_token_page")
+HUGGINGFACE_API_TOKEN = os.environ.get("HUGGINGFACE_API_TOKEN", "ton_token_huggingface")
 
-# Initialiser le pipeline Hugging Face pour la conversation
-generator = pipeline("text-generation", model="facebook/blenderbot-400M-distill")
-
-# Contexte pour spécialiser le bot sur les plantes de potager
+# Contexte pour spécialiser le bot sur les plantes de potager et répondre en français
 CONTEXT = (
     "Tu es un expert en jardinage, spécialisé dans les plantes de potager comme les tomates, les courgettes, les carottes, les salades, etc. "
-    "Tu donnes des conseils pratiques et réponds de manière amicale et naturelle, comme un ami jardinier qui partage son savoir."
+    "Réponds en français de manière amicale, naturelle et concise, comme un ami jardinier qui partage son savoir."
 )
 
 @app.route("/", methods=["GET"])
@@ -24,7 +21,7 @@ def verify():
         print("✅ Webhook vérifié avec succès.")
         return request.args.get("hub.challenge")
     print("❌ Échec de la vérification du webhook.")
-    return "Erreur de vérification"
+    return "Erreur de vérification", 403
 
 @app.route("/", methods=["POST"])
 def webhook():
@@ -38,32 +35,39 @@ def webhook():
                 message_text = messaging_event["message"].get("text")
                 if message_text:  # Vérifie que le message n'est pas vide
                     print(f"📨 Message reçu de {sender_id} : {message_text}")
-                    # Générer une réponse avec le modèle Hugging Face
+                    # Générer une réponse avec l'API Hugging Face
                     response_text = generate_response(message_text)
                     send_message(sender_id, response_text)
     return "ok", 200
 
 def generate_response(input_text):
     try:
-        # Ajouter le contexte au texte d'entrée pour orienter la réponse
+        headers = {"Authorization": f"Bearer {HUGGINGFACE_API_TOKEN}"}
         prompt = f"{CONTEXT} Utilisateur : {input_text}"
-        # Générer une réponse avec le modèle
-        generated = generator(
-            prompt,
-            max_length=100,  # Longueur maximale pour des réponses concises
-            num_return_sequences=1,  # Une seule réponse
-            truncation=True,  # Éviter les erreurs de longueur
-            pad_token_id=generator.tokenizer.eos_token_id  # Token de fin pour BlenderBot
+        payload = {
+            "inputs": prompt,
+            "parameters": {
+                "max_length": 100,
+                "num_return_sequences": 1,
+                "top_p": 0.9,
+                "temperature": 0.7  # Pour des réponses naturelles
+            }
+        }
+        response = requests.post(
+            "https://api-inference.huggingface.co/models/facebook/blenderbot-400M-distill",
+            headers=headers,
+            json=payload
         )
-        response_text = generated[0]["generated_text"].strip()
-        # Supprimer le contexte et l'entrée de l'utilisateur de la réponse
+        response.raise_for_status()  # Lève une erreur si la requête échoue
+        response_text = response.json()[0]["generated_text"].strip()
+        # Supprimer le contexte et l'entrée de l'utilisateur
         if response_text.startswith(CONTEXT):
             response_text = response_text[len(CONTEXT):].strip()
         if response_text.startswith(f"Utilisateur : {input_text}"):
             response_text = response_text[len(f"Utilisateur : {input_text}"):].strip()
-        # Limiter la réponse à une phrase ou deux pour plus de naturel
+        # Limiter à une phrase pour plus de concision
         response_text = response_text.split(". ")[0] + "." if ". " in response_text else response_text
-        return response_text if response_text else "Désolé, je n'ai pas bien compris. Peux-tu préciser ?"
+        return response_text if response_text else "Désolé, je n'ai pas compris. Peux-tu préciser ?"
     except Exception as e:
         print(f"❌ Erreur lors de la génération de la réponse : {e}")
         return "Oups, quelque chose s'est mal passé ! Peux-tu réessayer ?"
@@ -81,4 +85,5 @@ def send_message(recipient_id, message_text):
     print("📥 Réponse de l'API Facebook :", response.status_code, response.text)
 
 if __name__ == "__main__":
-    app.run(port=5000, debug=True)
+    port = int(os.environ.get("PORT", 5000))  # Utilise le port fourni par Render
+    app.run(host="0.0.0.0", port=port, debug=False)
