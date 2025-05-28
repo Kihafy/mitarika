@@ -4,4 +4,4 @@ transformers==4.40.0
 sentence-transformers==2.6.0
 torch==2.2.0 --extra-index-url https://download.pytorch.org/whl/cpu
 farm-haystack==1.25.0
-pymbar==3.1.0  # Pour l'estimation bayésienne (Nobel 2023)
+pymbar==3.1.0  
