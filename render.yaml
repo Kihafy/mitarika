@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: bot-messenger
+    env: python
+    plan: free
+    buildCommand: "pip install -r requirements.txt"
+    startCommand: "gunicorn main:app"
+    envVars:
+      - key: VERIFY_TOKEN
+        value: votre_token_de_verification
+      - key: PAGE_ACCESS_TOKEN
+        value: votre_token_d_acces_page
