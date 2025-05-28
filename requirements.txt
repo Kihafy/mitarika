@@ -1,7 +1,8 @@
 Flask==3.0.0
 gunicorn==21.2.0
-transformers==4.40.0
-sentence-transformers==2.6.0
-torch==2.2.0 --extra-index-url https://download.pytorch.org/whl/cpu
-farm-haystack==1.25.0
-pymbar==3.1.0  
+onnxruntime==1.16.3
+Pillow==10.1.0
+numpy==1.26.4
+scikit-image==0.22.0
+scikit-learn==1.4.0
+torchvision==0.16.0 --extra-index-url https://download.pytorch.org/whl/cpu
