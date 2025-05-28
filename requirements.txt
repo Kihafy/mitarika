@@ -5,5 +5,5 @@ Pillow==10.1.0
 numpy==1.26.4
 scikit-image==0.22.0
 torchvision==0.16.0 --extra-index-url https://download.pytorch.org/whl/cpu
-pyjpegloss
-emoji
+emoji==2.8.0
+opencv-python-headless==4.8.0.76  # Alternative pour la compression
