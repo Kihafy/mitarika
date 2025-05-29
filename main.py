@@ -9,6 +9,7 @@ import cv2
 import io
 import base64
 import json
+from scipy.stats import entropy
 
 app = Flask(__name__)
 
@@ -94,9 +95,9 @@ model = ort.InferenceSession(MODEL_PATH, providers=providers)
 input_name = model.get_inputs()[0].name
 
 def adaptive_compression(img_np, min_quality=20, max_quality=80, target_size=100000):
-    """Compression adaptative basée sur la variance (sans scipy)"""
-    variance = np.var(img_np.ravel())
-    quality = int(min_quality + (max_quality - min_quality) * (variance / 1000))
+    """Compression adaptative basée sur l'entropie avec scipy"""
+    entropy_val = entropy(img_np.ravel())
+    quality = int(min_quality + (max_quality - min_quality) * (entropy_val / 10))
     quality = min(max(quality, min_quality), max_quality)
     _, img_encoded = cv2.imencode('.jpg', img_np, [cv2.IMWRITE_JPEG_QUALITY, quality])
     compressed_bytes = img_encoded.tobytes()
@@ -201,11 +202,13 @@ def webhook():
                     if event.get('message'):
                         sender_id = event['sender']['id']
                         message = event['message'].get('text', '')
-                        # Extraire plante et problème depuis le message (ex: "tomate maladie")
                         parts = message.lower().split()
                         plant = parts[0] if parts else 'tomate'
                         problem = ' '.join(parts[1:]) if len(parts) > 1 else ''
-                        response = chat().get_json()
+                        response = requests.post(
+                            f"{request.url_root}chat",
+                            json={'plant': plant, 'problem': problem}
+                        ).json()
                         send_facebook_message(sender_id, response['response'])
         return "EVENT_RECEIVED", 200
 
