@@ -9,7 +9,6 @@ import cv2
 import io
 import base64
 import json
-from scipy.stats import entropy
 
 app = Flask(__name__)
 
@@ -48,7 +47,7 @@ PLANT_KNOWLEDGE = {
     }
 }
 
-# Fichier pour stocker les scores de confiance (persistance légère)
+# Fichier pour stocker les feedbacks
 FEEDBACK_FILE = "feedback.json"
 
 def load_feedback():
@@ -95,9 +94,10 @@ model = ort.InferenceSession(MODEL_PATH, providers=providers)
 input_name = model.get_inputs()[0].name
 
 def adaptive_compression(img_np, min_quality=20, max_quality=80, target_size=100000):
-    """Compression adaptative basée sur l'entropie et la taille cible"""
-    entropy_val = entropy(img_np.ravel())
-    quality = int(min_quality + (max_quality - min_quality) * (entropy_val / 10))  # Ajuster selon entropie
+    """Compression adaptative basée sur la variance (sans scipy)"""
+    variance = np.var(img_np.ravel())
+    quality = int(min_quality + (max_quality - min_quality) * (variance / 1000))
+    quality = min(max(quality, min_quality), max_quality)
     _, img_encoded = cv2.imencode('.jpg', img_np, [cv2.IMWRITE_JPEG_QUALITY, quality])
     compressed_bytes = img_encoded.tobytes()
     if len(compressed_bytes) > target_size and quality > min_quality:
@@ -171,6 +171,7 @@ def chat():
         save_feedback(feedback_data)
     
     solution = "Je ne connais pas ce problème. Essayez de décrire les symptômes."
+    confidence = 0.0
     for key in PLANT_KNOWLEDGE.get(plant, {}).get("solutions", {}):
         if problem.lower() in key.lower():
             solution = PLANT_KNOWLEDGE[plant]["solutions"][key]["text"]
@@ -200,14 +201,17 @@ def webhook():
                     if event.get('message'):
                         sender_id = event['sender']['id']
                         message = event['message'].get('text', '')
-                        # Simuler une requête /chat
+                        # Extraire plante et problème depuis le message (ex: "tomate maladie")
+                        parts = message.lower().split()
+                        plant = parts[0] if parts else 'tomate'
+                        problem = ' '.join(parts[1:]) if len(parts) > 1 else ''
                         response = chat().get_json()
                         send_facebook_message(sender_id, response['response'])
         return "EVENT_RECEIVED", 200
 
 def send_facebook_message(sender_id, message):
     """Envoyer une réponse via l'API Facebook Messenger"""
-    access_token = os.environ.get('FB_PAGE_ACCESS_TOKEN')
+    access_token = os.environ.get('PAGE_ACCESS_TOKEN')
     url = f"https://graph.facebook.com/v13.0/me/messages?access_token={access_token}"
     payload = {
         "recipient": {"id": sender_id},
