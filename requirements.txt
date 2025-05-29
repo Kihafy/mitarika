@@ -6,3 +6,4 @@ opencv-python-headless==4.8.0.76
 onnxruntime==1.17.0
 onnx==1.16.0
 requests==2.31.0
+scipy==1.14.1
