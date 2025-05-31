@@ -16,8 +16,8 @@ app = Flask(__name__)
 # Configuration ONNX
 ort.set_default_logger_severity(3)
 providers = ['CPUExecutionProvider']
-MODEL_URL = "https://github.com/onnx/models/raw/main/vision/classification/mobilenet/model/mobilenetv3-small-11.onnx"
-MODEL_PATH = "mobilenetv3-small.onnx"
+MODEL_URL = "https://raw.githubusercontent.com/Kihafy/mitarika/main/mobilenetv3_rw_Opset17.onnx"
+MODEL_PATH = "mobilenetv3_rw_Opset17.onnx"
 
 # Classes du modèle
 CLASS_NAMES = [
