@@ -83,7 +83,7 @@ async def predict(file: UploadFile = File(...)):
         input_tensor = preprocess_image(image)
         input_name = model.get_inputs()[0].name
         outputs = model.run(None, {input_name: input_tensor})
-        predictions = outputs[0emn0]
+        predictions = outputs[0]  # Corrigé : suppression de "0emn0"
         top_index = int(np.argmax(predictions))
         confidence = float(predictions[top_index])
 
