@@ -14,7 +14,7 @@ app = Flask(__name__)
 # Configuration ONNX
 ort.set_default_logger_severity(3)
 providers = ['CPUExecutionProvider']
-MODEL_URL = "https://github.com/Kihafy/mitarika/releases/download/v1.0/mobilenetv3_rw_Opset17.onnx"
+MODEL_URL = "https://raw.githubusercontent.com/Kihafy/mitarika/main/mobilenetv3_rw_Opset17.onnx"
 MODEL_PATH = "model.onnx"  # Nom plus court
 
 # Classes du modèle
