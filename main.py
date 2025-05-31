@@ -9,7 +9,7 @@ import onnxruntime as ort
 
 app = FastAPI()
 
-MODEL_PATH = "MobileNet-v3-Small.onnx"
+MODEL_PATH = "MobileNet.onnx"
 WELCOME_MESSAGES = [
     "👋 Bonjour ! Prêt à découvrir ce que je vois ?",
     "Salut ! Envoyez-moi une image et je vous dis ce qu'elle contient 📷.",
