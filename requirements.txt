@@ -4,7 +4,7 @@ numpy==1.26.4
 Pillow==10.1.0
 opencv-python-headless==4.8.0.76
 onnxruntime==1.15.0
-onnx==1.17.3
+onnx==1.17.0
 requests==2.31.0
 scipy==1.14.1
 fastapi 
