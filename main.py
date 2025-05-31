@@ -10,8 +10,8 @@ import numpy as np
 
 app = FastAPI()
 
-MODEL_PATH_ORIGINAL = "MobileNet-v3-Small.onnx"
-MODEL_PATH_CONVERTED = "MobileNet-v3-Small_ops19.onnx"
+MODEL_PATH_ORIGINAL = "MobileNet.onnx"
+MODEL_PATH_CONVERTED = "MobileNet_19.onnx"
 WELCOME_MESSAGES = [
     "👋 Bonjour ! Prêt à découvrir ce que je vois ?",
     "Salut ! Envoyez-moi une image et je vous dis ce qu'elle contient 📷.",
@@ -24,7 +24,7 @@ def get_welcome_message():
 def check_and_convert_model():
     """Vérifie l'opset du modèle et le convertit en opset 19 si nécessaire."""
     if not os.path.exists(MODEL_PATH_ORIGINAL):
-        raise FileNotFoundError(f"❌ Modèle introuvable à {MODEL_PATH_ORIGINAL}. Placez 'MobileNet-v3-Small.onnx' dans le dossier du projet.")
+        raise FileNotFoundError(f"❌ Modèle introuvable à {MODEL_PATH_ORIGINAL}. Placez 'MobileNet.onnx' dans le dossier du projet.")
 
     # Charger le modèle pour vérifier l'opset
     model = onnx.load(MODEL_PATH_ORIGINAL)
