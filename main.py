@@ -21,8 +21,8 @@ WELCOME_MESSAGES = [
 ]
 
 # Configuration pour Messenger (remplacez par vos propres valeurs)
-VERIFY_TOKEN = "votre_token_de_verification"  # Définissez ce token dans votre configuration Messenger
-APP_SECRET = "votre_app_secret"  # Secret de l'application pour valider les signatures (optionnel)
+VERIFY_TOKEN = os.getenv("VERIFY_TOKEN")
+PAGE_ACCESS_TOKEN = os.getenv("PAGE_ACCESS_TOKEN")
 
 def get_welcome_message():
     return random.choice(WELCOME_MESSAGES)
