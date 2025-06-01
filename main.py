@@ -120,6 +120,11 @@ async def webhook(request: Request):
         if "entry" in body and len(body["entry"]) > 0:
             messaging = body["entry"][0].get("messaging", [])
             for event in messaging:
+                # Ignorer les messages "echo" pour éviter une boucle infinie
+                if "message" in event and event["message"].get("is_echo", False):
+                    print("Message echo ignoré")
+                    continue
+
                 sender_id = event["sender"]["id"]
                 response_message = {"recipient": {"id": sender_id}, "message": {"text": ""}}
 
@@ -151,9 +156,16 @@ async def webhook(request: Request):
                                 input_name = model.get_inputs()[0].name
                                 outputs = model.run(None, {input_name: input_tensor})
                                 predictions = outputs[0]
-                                top_index = int(np.argmax(predictions))
-                                confidence = float(predictions[top_index])
-                                response_message["message"]["text"] = f"Prediction: Classe #{top_index}, Confiance: {confidence:.2%}"
+                                print(f"Forme des prédictions : {predictions.shape}")  # Log pour déboguer
+
+                                # Vérifier la forme des prédictions
+                                if predictions.shape != (1, 1000):
+                                    print(f"Erreur : Prédictions inattendues, forme {predictions.shape}, attendu (1, 1000)")
+                                    response_message["message"]["text"] = "Erreur lors de la prédiction de l'image. Le modèle ne fonctionne pas comme prévu."
+                                else:
+                                    top_index = int(np.argmax(predictions))
+                                    confidence = float(predictions[0, top_index])
+                                    response_message["message"]["text"] = f"Prediction: Classe #{top_index}, Confiance: {confidence:.2%}"
 
                 # Envoyer la réponse à Messenger
                 if response_message["message"]["text"]:
