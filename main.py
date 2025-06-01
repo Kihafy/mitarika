@@ -9,6 +9,8 @@ from PIL import Image
 import numpy as np
 import hmac
 import hashlib
+from io import BytesIO
+import requests  # Assurez-vous d'avoir importé requests
 
 app = FastAPI()
 
@@ -20,9 +22,10 @@ WELCOME_MESSAGES = [
     "Bienvenue ! Je suis un assistant visuel intelligent. Que puis-je faire pour vous ?",
 ]
 
-# Configuration pour Messenger (remplacez par vos propres valeurs)
-VERIFY_TOKEN = os.getenv("VERIFY_TOKEN")
-PAGE_ACCESS_TOKEN = os.getenv("PAGE_ACCESS_TOKEN")
+# Récupérer les variables d'environnement depuis Render
+VERIFY_TOKEN = os.getenv("VERIFY_TOKEN")  # Récupère le token de vérification
+APP_SECRET = os.getenv("APP_SECRET")      # Secret de l'application (optionnel)
+PAGE_ACCESS_TOKEN = os.getenv("PAGE_ACCESS_TOKEN")  # Token d'accès pour Messenger
 
 def get_welcome_message():
     return random.choice(WELCOME_MESSAGES)
@@ -124,8 +127,7 @@ async def webhook(request: Request):
                         if attachment["type"] == "image":
                             # Récupérer l'URL de l'image
                             image_url = attachment["payload"]["url"]
-                            # Télécharger l'image (nécessite la bibliothèque requests)
-                            import requests
+                            # Télécharger l'image
                             response = requests.get(image_url)
                             image = Image.open(BytesIO(response.content)).convert("RGB")
                             input_tensor = preprocess_image(image)
@@ -142,12 +144,10 @@ async def webhook(request: Request):
                                     "text": f"Prediction: Classe #{top_index}, Confiance: {confidence:.2%}"
                                 }
                             }
-                            # Envoyer la réponse via l'API Messenger (nécessite un access token)
-                            # Remplacez ACCESS_TOKEN par votre token d'accès
-                            ACCESS_TOKEN = "votre_page_access_token"
+                            # Envoyer la réponse via l'API Messenger
                             requests.post(
                                 "https://graph.facebook.com/v17.0/me/messages",
-                                params={"access_token": ACCESS_TOKEN},
+                                params={"access_token": PAGE_ACCESS_TOKEN},
                                 json=response_message
                             )
         return {"status": "ok"}
