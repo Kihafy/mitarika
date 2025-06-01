@@ -23,9 +23,8 @@ WELCOME_MESSAGES = [
 ]
 
 # Récupérer les variables d'environnement depuis Render
-VERIFY_TOKEN = os.getenv("VERIFY_TOKEN")  # Récupère le token de vérification
-APP_SECRET = os.getenv("APP_SECRET")      # Secret de l'application (optionnel)
-PAGE_ACCESS_TOKEN = os.getenv("PAGE_ACCESS_TOKEN")  # Token d'accès pour Messenger
+VERIFY_TOKEN = os.getenv("VERIFY_TOKEN", )  # Récupère le token de vérification
+PAGE_ACCESS_TOKEN = os.getenv("PAGE_ACCESS_TOKEN", )  # Token d'accès pour Messenger
 
 def get_welcome_message():
     return random.choice(WELCOME_MESSAGES)
@@ -118,18 +117,21 @@ async def webhook(request: Request):
     """Gère les messages entrants de Messenger."""
     try:
         body = await request.json()
-        # Vérifiez si c'est un message avec une pièce jointe (image)
+        print(f"Reçu : {body}")  # Log du corps de la requête
         if "entry" in body and len(body["entry"]) > 0:
             messaging = body["entry"][0].get("messaging", [])
             for event in messaging:
                 if "message" in event and "attachments" in event["message"]:
                     for attachment in event["message"]["attachments"]:
                         if attachment["type"] == "image":
-                            # Récupérer l'URL de l'image
                             image_url = attachment["payload"]["url"]
-                            # Télécharger l'image
+                            print(f"Téléchargement de l'image depuis : {image_url}")
                             response = requests.get(image_url)
+                            if response.status_code != 200:
+                                print(f"Erreur téléchargement image : {response.status_code} - {response.text}")
+                                raise HTTPException(status_code=500, detail="Erreur téléchargement image")
                             image = Image.open(BytesIO(response.content)).convert("RGB")
+                            print("Image téléchargée et convertie avec succès")
                             input_tensor = preprocess_image(image)
                             input_name = model.get_inputs()[0].name
                             outputs = model.run(None, {input_name: input_tensor})
@@ -137,19 +139,23 @@ async def webhook(request: Request):
                             top_index = int(np.argmax(predictions))
                             confidence = float(predictions[top_index])
 
-                            # Réponse à envoyer à Messenger
                             response_message = {
                                 "recipient": {"id": event["sender"]["id"]},
                                 "message": {
                                     "text": f"Prediction: Classe #{top_index}, Confiance: {confidence:.2%}"
                                 }
                             }
-                            # Envoyer la réponse via l'API Messenger
-                            requests.post(
+                            print(f"Envoi de la réponse à Messenger : {response_message}")
+                            fb_response = requests.post(
                                 "https://graph.facebook.com/v17.0/me/messages",
                                 params={"access_token": PAGE_ACCESS_TOKEN},
                                 json=response_message
                             )
+                            if fb_response.status_code != 200:
+                                print(f"Erreur envoi message Messenger : {fb_response.status_code} - {fb_response.text}")
+                                raise HTTPException(status_code=500, detail="Erreur envoi message")
+                            print("Message envoyé avec succès à Messenger")
         return {"status": "ok"}
     except Exception as e:
+        print(f"Erreur dans le webhook : {e}")
         raise HTTPException(status_code=500, detail=f"Erreur dans le webhook : {e}")
