@@ -111,50 +111,63 @@ async def webhook_verify(request: Request):
         return int(challenge)  # Renvoie la challenge pour valider le webhook
     else:
         raise HTTPException(status_code=403, detail="Token de vérification incorrect")
-
 @app.post("/webhook")
 async def webhook(request: Request):
-    """Gère les messages entrants de Messenger."""
+    """Gère les messages entrants de Messenger (texte et images)."""
     try:
         body = await request.json()
         print(f"Reçu : {body}")  # Log du corps de la requête
         if "entry" in body and len(body["entry"]) > 0:
             messaging = body["entry"][0].get("messaging", [])
             for event in messaging:
-                if "message" in event and "attachments" in event["message"]:
-                    for attachment in event["message"]["attachments"]:
-                        if attachment["type"] == "image":
-                            image_url = attachment["payload"]["url"]
-                            print(f"Téléchargement de l'image depuis : {image_url}")
-                            response = requests.get(image_url)
-                            if response.status_code != 200:
-                                print(f"Erreur téléchargement image : {response.status_code} - {response.text}")
-                                raise HTTPException(status_code=500, detail="Erreur téléchargement image")
-                            image = Image.open(BytesIO(response.content)).convert("RGB")
-                            print("Image téléchargée et convertie avec succès")
-                            input_tensor = preprocess_image(image)
-                            input_name = model.get_inputs()[0].name
-                            outputs = model.run(None, {input_name: input_tensor})
-                            predictions = outputs[0]
-                            top_index = int(np.argmax(predictions))
-                            confidence = float(predictions[top_index])
+                sender_id = event["sender"]["id"]
+                response_message = {"recipient": {"id": sender_id}, "message": {"text": ""}}
 
-                            response_message = {
-                                "recipient": {"id": event["sender"]["id"]},
-                                "message": {
-                                    "text": f"Prediction: Classe #{top_index}, Confiance: {confidence:.2%}"
-                                }
-                            }
-                            print(f"Envoi de la réponse à Messenger : {response_message}")
-                            fb_response = requests.post(
-                                "https://graph.facebook.com/v17.0/me/messages",
-                                params={"access_token": PAGE_ACCESS_TOKEN},
-                                json=response_message
-                            )
-                            if fb_response.status_code != 200:
-                                print(f"Erreur envoi message Messenger : {fb_response.status_code} - {fb_response.text}")
-                                raise HTTPException(status_code=500, detail="Erreur envoi message")
-                            print("Message envoyé avec succès à Messenger")
+                if "message" in event:
+                    if "text" in event["message"]:
+                        # Gérer les messages texte
+                        user_text = event["message"]["text"]
+                        print(f"Message texte reçu : {user_text}")
+                        if user_text.lower() in ["bonjour", "hi", "hello"]:
+                            response_message["message"]["text"] = "👋 Bonjour ! Comment puis-je vous aider ?"
+                        elif user_text.lower() == "alors?":
+                            response_message["message"]["text"] = "Je suis prêt ! Envoyez-moi une image pour une prédiction."
+                        else:
+                            response_message["message"]["text"] = "Je ne comprends pas encore. Essayez 'bonjour' ou envoyez une image !"
+
+                    elif "attachments" in event["message"]:
+                        # Gérer les images
+                        for attachment in event["message"]["attachments"]:
+                            if attachment["type"] == "image":
+                                image_url = attachment["payload"]["url"]
+                                print(f"Téléchargement de l'image depuis : {image_url}")
+                                response = requests.get(image_url)
+                                if response.status_code != 200:
+                                    print(f"Erreur téléchargement image : {response.status_code} - {response.text}")
+                                    raise HTTPException(status_code=500, detail="Erreur téléchargement image")
+                                image = Image.open(BytesIO(response.content)).convert("RGB")
+                                print("Image téléchargée et convertie avec succès")
+                                input_tensor = preprocess_image(image)
+                                input_name = model.get_inputs()[0].name
+                                outputs = model.run(None, {input_name: input_tensor})
+                                predictions = outputs[0]
+                                top_index = int(np.argmax(predictions))
+                                confidence = float(predictions[top_index])
+                                response_message["message"]["text"] = f"Prediction: Classe #{top_index}, Confiance: {confidence:.2%}"
+
+                # Envoyer la réponse à Messenger
+                if response_message["message"]["text"]:
+                    print(f"Envoi de la réponse à Messenger : {response_message}")
+                    fb_response = requests.post(
+                        "https://graph.facebook.com/v17.0/me/messages",
+                        params={"access_token": PAGE_ACCESS_TOKEN},
+                        json=response_message
+                    )
+                    if fb_response.status_code != 200:
+                        print(f"Erreur envoi message Messenger : {fb_response.status_code} - {fb_response.text}")
+                        raise HTTPException(status_code=500, detail="Erreur envoi message")
+                    print("Message envoyé avec succès à Messenger")
+
         return {"status": "ok"}
     except Exception as e:
         print(f"Erreur dans le webhook : {e}")
