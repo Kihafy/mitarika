@@ -1,5 +1,6 @@
 import os
 import random
+import gc
 import onnx
 from onnx import version_converter
 import onnxruntime as ort
@@ -10,7 +11,11 @@ import numpy as np
 import hmac
 import hashlib
 from io import BytesIO
-import requests  # Assurez-vous d'avoir importé requests
+import requests
+from dotenv import load_dotenv
+
+# Charger les variables d'environnement depuis .env (facultatif si défini dans Render)
+load_dotenv()
 
 app = FastAPI()
 
@@ -22,10 +27,10 @@ WELCOME_MESSAGES = [
     "Bienvenue ! Je suis un assistant visuel intelligent. Que puis-je faire pour vous ?",
 ]
 
-# Récupérer les variables d'environnement depuis Render
-VERIFY_TOKEN = os.getenv("VERIFY_TOKEN", )  # Récupère le token de vérification
-PAGE_ACCESS_TOKEN = os.getenv("PAGE_ACCESS_TOKEN", )  # Token d'accès pour Messenger
-XAI_API_KEY = "xai-czS8RSkyF1VrA6Ah0TZivJdbJnUrvLdkoASrCKCqycfp5xDu8n8MzCWWJhg5k6hWwmGY1K7ErbxEgpTe"  # Clé API Grok 3
+# Récupérer les variables d'environnement
+VERIFY_TOKEN = os.getenv("VERIFY_TOKEN", "")
+PAGE_ACCESS_TOKEN = os.getenv("PAGE_ACCESS_TOKEN", "")
+XAI_API_KEY = os.getenv("XAI_API_KEY", "")  # Clé API Grok 3 à définir dans Render ou .env
 
 def get_welcome_message():
     return random.choice(WELCOME_MESSAGES)
@@ -121,6 +126,9 @@ async def predict(file: UploadFile = File(...)):
         })
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Erreur de prédiction : {e}")
+    finally:
+        image.close()  # Ferme l'image pour libérer la mémoire
+        gc.collect()   # Force la collecte des déchets pour libérer la mémoire
 
 @app.get("/webhook")
 async def webhook_verify(request: Request):
@@ -175,24 +183,30 @@ async def webhook(request: Request):
                                 if response.status_code != 200:
                                     print(f"Erreur téléchargement image : {response.status_code} - {response.text}")
                                     raise HTTPException(status_code=500, detail="Erreur téléchargement image")
-                                image = Image.open(BytesIO(response.content)).convert("RGB")
-                                print("Image téléchargée et convertie avec succès")
-                                input_tensor = preprocess_image(image)
-                                input_name = model.get_inputs()[0].name
-                                outputs = model.run(None, {input_name: input_tensor})
-                                predictions = outputs[0]
-                                print(f"Forme des prédictions : {predictions.shape}")  # Log pour déboguer
+                                image = None
+                                try:
+                                    image = Image.open(BytesIO(response.content)).convert("RGB")
+                                    print("Image téléchargée et convertie avec succès")
+                                    input_tensor = preprocess_image(image)
+                                    input_name = model.get_inputs()[0].name
+                                    outputs = model.run(None, {input_name: input_tensor})
+                                    predictions = outputs[0]
+                                    print(f"Forme des prédictions : {predictions.shape}")  # Log pour déboguer
 
-                                # Vérifier la forme des prédictions
-                                if predictions.shape != (1, 1000):
-                                    print(f"Erreur : Prédictions inattendues, forme {predictions.shape}, attendu (1, 1000)")
-                                    response_message["message"]["text"] = "Erreur lors de la prédiction de l'image. Le modèle ne fonctionne pas comme prévu."
-                                else:
-                                    top_index = int(np.argmax(predictions))
-                                    confidence = float(predictions[0, top_index])
-                                    # Appeler Grok pour interpréter la prédiction
-                                    grok_interpretation = await interpret_prediction_with_grok(top_index, confidence)
-                                    response_message["message"]["text"] = f"Prediction: Classe #{top_index}, Confiance: {confidence:.2%}\nInterprétation: {grok_interpretation}"
+                                    # Vérifier la forme des prédictions
+                                    if predictions.shape != (1, 1000):
+                                        print(f"Erreur : Prédictions inattendues, forme {predictions.shape}, attendu (1, 1000)")
+                                        response_message["message"]["text"] = "Erreur lors de la prédiction de l'image. Le modèle ne fonctionne pas comme prévu."
+                                    else:
+                                        top_index = int(np.argmax(predictions))
+                                        confidence = float(predictions[0, top_index])
+                                        # Appeler Grok pour interpréter la prédiction
+                                        grok_interpretation = await interpret_prediction_with_grok(top_index, confidence)
+                                        response_message["message"]["text"] = f"Prediction: Classe #{top_index}, Confiance: {confidence:.2%}\nInterprétation: {grok_interpretation}"
+                                finally:
+                                    if image is not None:
+                                        image.close()  # Ferme l'image pour libérer la mémoire
+                                    gc.collect()  # Force la collecte des déchets
 
                 # Envoyer la réponse à Messenger
                 if response_message["message"]["text"]:
