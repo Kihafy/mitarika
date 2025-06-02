@@ -1,11 +1,1 @@
-fastapi==0.115.2
-uvicorn==0.34.2
-python-multipart==0.0.12
-numpy==1.26.4
-Pillow==10.1.0
-onnxruntime==1.15.0
-onnx==1.17.0
-requests==2.31.0
-python-dotenv==1.0.1  # Ajout pour gérer les variables d'environnement
-pydantic==2.7.1  # Ajout pour la validation des données
-aiohttp==3.9.5  # Ajout pour les requêtes asynchrones (facultatif sans modification du code)
+fastapi==0.115.2 uvicorn==0.34.2 gunicorn==23.0.0 # Ajout pour exécuter l'application avec Gunicorn python-multipart==0.0.12 numpy==1.26.4 Pillow==10.1.0 onnxruntime==1.15.0 onnx==1.17.0 requests==2.31.0 python-dotenv==1.0.1 # Pour gérer les variables d'environnement pydantic==2.7.1 # Pour la validation des données aiohttp==3.9.5 # Pour les requêtes asynchrones (facultatif sans modification)
