@@ -6,6 +6,6 @@ Pillow==10.1.0
 onnxruntime==1.15.0
 onnx==1.17.0
 requests==2.31.0
-python-dotenv==1.0.1  # Pour la gestion des variables d'environnement
-pydantic==2.7.1  # Pour la validation des données
-aiohttp==3.9.5  # Pour les requêtes HTTP asynchrones
+python-dotenv==1.0.1  # Ajout pour gérer les variables d'environnement
+pydantic==2.7.1  # Ajout pour la validation des données
+aiohttp==3.9.5  # Ajout pour les requêtes asynchrones (facultatif sans modification du code)
